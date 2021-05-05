@@ -1,44 +1,54 @@
-var net = require('net');
-var crypto = require('crypto');
+import net from 'net';
+import crypto from 'crypto';
 
 var players = [];
 
-function Player(name, socket) {
-    this.name = name;
-    this.health = 0;
-    this.mana = 0;
-    this.x = 0;
-    this.y = 0;
-    this.z = 0;
-    this.partyMembers = [];
-    this.socket = socket;
+class Player {
+    constructor(name, socket) {
+        this.name = name;
+        this.health = 0;
+        this.mana = 0;
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+        this.partyMembers = [];
+        this.socket = socket;
 
-    //Initial party hash
-    var sum = crypto.createHash('sha256');
-    sum.update(name + Math.random());
-    this.partyHash = sum.digest('base64');
+        //Initial party hash
+        var sum = crypto.createHash('sha256');
+        sum.update(name + Math.random());
+        this.partyHash = sum.digest('base64');
+    }
 }
 
-function HealthPacket(player) {
-    this.name = player.name;
-    this.hp = player.hp;
+class HealthPacket {
+    constructor(player) {
+        this.name = player.name;
+        this.hp = player.hp;
+    }
 }
 
-function ManaPacket(player) {
-    this.name = player.name;
-    this.mana = player.mana;
+class ManaPacket {
+    constructor(player) {
+        this.name = player.name;
+        this.mana = player.mana;
+    }
 }
 
-function PositionPacket(player) {
-    this.name = player.name;
-    this.x = player.x;
-    this.y = player.y;
-    this.z = player.z;
+class PositionPacket {
+    constructor(player) {
+        this.name = player.name;
+        this.x = player.x;
+        this.y = player.y;
+        this.z = player.z;
+    }
 }
 
-function NameMap(partial, full) {
-    this.name = partial;
-    this.fullName = full;
+class NameMap {
+    constructor(partial, full) {
+        this.name = partial;
+        this.fullName = full;
+    }
 }
 
 function changePosition(player, x, y, z) {
@@ -80,8 +90,7 @@ function getFullName(player, partialName) {
 }
 
 function sendDataToParty(player, dataStr) {
-    var partyHash = player.partyHash,
-        oPlayer;
+    var partyHash = player.partyHash, oPlayer;
     for (var i = 0; i < players.length; i++) {
         oPlayer = players[i];
         if (oPlayer !== player && oPlayer.partyHash === partyHash) {
@@ -90,8 +99,10 @@ function sendDataToParty(player, dataStr) {
     }
 }
 
-var serv = net.createServer(function(sock) {
+var serv = net.createServer((sock) =>{
     sock.setNoDelay(true);
+    // local variables are "private" w.r.t the tcp connection
+    // each connection gets assigned their own player
     var player = null;
 
     function playerLeave() {
@@ -102,13 +113,26 @@ var serv = net.createServer(function(sock) {
         }
     }
 
-    sock.on('data', function(dataStr) {
+    sock.on('data', (dataStr) => {
+        console.log("revc packet")
         var pkt, p, pos, hp, mana;
         try {
             pkt = JSON.parse(dataStr);
         } catch (e) {
             return;
         }
+        /*
+        {
+            "type": {"JOIN", "LEAVE"...},
+            "x": int
+            "y": int
+            "z": int
+            "hp": int
+            "mana": int
+        }
+
+
+        */
         if (pkt.type === "JOIN") {
             player = new Player(pkt.name, sock);
             changeMembers(player, pkt.partyMembers);
@@ -135,6 +159,7 @@ var serv = net.createServer(function(sock) {
         if (!player) {
             return;
         }
+
         switch (pkt.type) {
         case "POS":
             changePosition(player, pkt.x, pkt.y, pkt.z);
